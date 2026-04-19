@@ -1,0 +1,200 @@
+name: agent-eval
+
+on:
+  pull_request:
+    paths:
+      - 'agents/**'
+      - 'eval-cases/**'
+  workflow_dispatch:
+    inputs:
+      fail_on_critical:
+        description: 'Fail the workflow if any critical failures are found'
+        required: false
+        default: 'true'
+        type: choice
+        options:
+          - 'true'
+          - 'false'
+      agent:
+        description: 'Agent name to evaluate (leave blank to eval all changed agents)'
+        required: false
+        type: string
+
+permissions:
+  contents: read
+  pull-requests: write
+
+jobs:
+  eval:
+    name: Evaluate agent behavior
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Install dependencies
+        run: pip install -r scripts/ci-requirements.txt
+
+      - name: Identify agents to evaluate
+        id: agents
+        run: |
+          if [ "${{ github.event_name }}" = "workflow_dispatch" ] && [ -n "${{ inputs.agent }}" ]; then
+            echo "list=${{ inputs.agent }}" >> "$GITHUB_OUTPUT"
+          else
+            # Find agents touched by this PR, or all agents if eval-cases changed
+            changed=$(git diff --name-only origin/${{ github.base_ref }}...HEAD || true)
+            agents=$(echo "$changed" | grep -E '^agents/.*\.md$' | sed 's|agents/||; s|\.md$||' | sort -u || true)
+            if echo "$changed" | grep -q '^eval-cases/'; then
+              # Test cases changed — eval every agent
+              agents=$(ls agents/*.md 2>/dev/null | sed 's|agents/||; s|\.md$||' | sort -u || true)
+            fi
+            echo "list<<EOF" >> "$GITHUB_OUTPUT"
+            echo "$agents" >> "$GITHUB_OUTPUT"
+            echo "EOF" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Run evals via Claude
+        env:
+          ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+        run: |
+          if [ -z "$ANTHROPIC_API_KEY" ]; then
+            echo "::error::ANTHROPIC_API_KEY secret is not set. Add it under repo Settings → Secrets and variables → Actions."
+            exit 1
+          fi
+          mkdir -p results
+          AGENTS="${{ steps.agents.outputs.list }}"
+          if [ -z "$AGENTS" ]; then
+            echo "No agents changed and no eval cases changed — nothing to evaluate."
+            exit 0
+          fi
+          DATE=$(date -u +%Y-%m-%d)
+          EVAL_EXIT=0
+          for agent in $AGENTS; do
+            echo "::group::Evaluating $agent"
+            # The Claude invocation is delegated to a small driver script so the
+            # workflow YAML stays declarative. Consumers can swap this for
+            # `claude-code -p /eval-run $agent` or direct SDK calls.
+            if ! python scripts/run_eval.py "$agent" > "results/${DATE}-${agent}.json"; then
+              echo "::error::run_eval.py failed for $agent — skipping report generation"
+              EVAL_EXIT=1
+              echo "::endgroup::"
+              continue
+            fi
+            python scripts/generate_report.py "results/${DATE}-${agent}.json" || EVAL_EXIT=$?
+            echo "::endgroup::"
+          done
+          echo "EVAL_EXIT=$EVAL_EXIT" >> "$GITHUB_ENV"
+
+      - name: Upload reports
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: agent-eval-reports
+          path: results/
+
+      - name: Post PR comment
+        if: github.event_name == 'pull_request' && always()
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const fs = require('fs');
+            const path = require('path');
+            const resultsDir = 'results';
+            if (!fs.existsSync(resultsDir)) return;
+
+            const today = new Date().toISOString().slice(0, 10);
+            const files = fs.readdirSync(resultsDir).filter(f => f.endsWith('.json') && f.startsWith(today));
+            if (files.length === 0) return;
+
+            let body = '## 🤖 Agent Eval Results\n\n';
+            const categoryOrder = ['role-adherence', 'escalation', 'output-format', 'handoff', 'scope', 'confidence'];
+            let overallCritical = 0;
+
+            for (const file of files) {
+              const data = JSON.parse(fs.readFileSync(path.join(resultsDir, file)));
+              const verdicts = data.verdicts || [];
+              const passed = verdicts.filter(v => v.verdict === 'PASS').length;
+              const total = verdicts.length;
+              const pct = total ? Math.round((passed / total) * 100) : 0;
+              const bar = '█'.repeat(Math.round(pct / 10)) + '░'.repeat(10 - Math.round(pct / 10));
+              const critical = verdicts.filter(v => v.severity === 'critical' && v.verdict === 'FAIL');
+              overallCritical += critical.length;
+
+              body += `**Agent:** \`${data.agent}\` &middot; **Run:** ${data.run_date}\n\n`;
+              body += `**Overall:** ${passed}/${total} (${pct}%) \`${bar}\`\n\n`;
+              body += `| Category | Result |\n|---|---|\n`;
+              for (const cat of categoryOrder) {
+                const catVerdicts = verdicts.filter(v => v.category === cat);
+                if (catVerdicts.length === 0) { body += `| ${cat} | — |\n`; continue; }
+                const catPassed = catVerdicts.filter(v => v.verdict === 'PASS').length;
+                const hasCritical = catVerdicts.some(v => v.severity === 'critical' && v.verdict === 'FAIL');
+                body += `| ${cat} | ${catPassed}/${catVerdicts.length}${hasCritical ? ' ⚠ CRITICAL' : ''} |\n`;
+              }
+              body += '\n';
+              if (critical.length > 0) {
+                body += `⚠️ **${critical.length} Critical Failure${critical.length > 1 ? 's' : ''} — review before merging**\n\n`;
+                for (const c of critical) {
+                  body += `- \`${c.category}\` — **${c.test_case}**: ${c.finding}\n`;
+                }
+                body += '\n';
+              }
+            }
+
+            body += overallCritical > 0
+              ? '❌ **Review required** — critical failures present.\n'
+              : '✅ **All critical checks passed** — proceed to merge when ready.\n';
+            body += '\n_Full HTML reports attached as workflow artifacts._\n';
+
+            // Run history — one line per previous run on this PR, preserved across updates
+            const { data: existingComments } = await github.rest.issues.listComments({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              issue_number: context.issue.number,
+            });
+            const prior = existingComments.find(c => c.body && c.body.startsWith('## 🤖 Agent Eval Results'));
+            const priorHistory = prior && prior.body.match(/<!-- run-history\n([\s\S]*?)\n-->/);
+            const historyLines = priorHistory ? priorHistory[1].split('\n').filter(Boolean) : [];
+            const agentNames = files.map(f => JSON.parse(fs.readFileSync(path.join(resultsDir, f))).agent).join(', ');
+            const totalPassed = files.reduce((n, f) => n + JSON.parse(fs.readFileSync(path.join(resultsDir, f))).verdicts.filter(v => v.verdict === 'PASS').length, 0);
+            const totalTests = files.reduce((n, f) => n + JSON.parse(fs.readFileSync(path.join(resultsDir, f))).verdicts.length, 0);
+            const nowIso = new Date().toISOString().replace('T', ' ').slice(0, 16) + ' UTC';
+            const runUrl = `${context.payload.repository.html_url}/actions/runs/${context.runId}`;
+            const newLine = `- ${nowIso} · [#${context.runId}](${runUrl}) · ${agentNames} · ${totalPassed}/${totalTests}${overallCritical > 0 ? ` · ⚠ ${overallCritical} critical` : ''}`;
+            historyLines.push(newLine);
+            const trimmed = historyLines.slice(-10); // keep last 10 runs
+            body += `\n---\n**Run history (this PR):**\n${trimmed.join('\n')}\n\n<!-- run-history\n${trimmed.join('\n')}\n-->\n`;
+
+            const { data: comments } = await github.rest.issues.listComments({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              issue_number: context.issue.number,
+            });
+            const existing = comments.find(c => c.body && c.body.startsWith('## 🤖 Agent Eval Results'));
+            if (existing) {
+              await github.rest.issues.updateComment({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                comment_id: existing.id,
+                body,
+              });
+            } else {
+              await github.rest.issues.createComment({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                issue_number: context.issue.number,
+                body,
+              });
+            }
+
+      - name: Fail on critical
+        if: env.EVAL_EXIT == '1' && (inputs.fail_on_critical != 'false')
+        run: |
+          echo "::error::Critical failures found in agent eval. See PR comment and artifacts."
+          exit 1

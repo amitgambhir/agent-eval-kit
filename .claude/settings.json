@@ -1,0 +1,24 @@
+{
+  "$schema": "https://json.schemastore.org/claude-code-settings.json",
+  "permissions": {
+    "allow": [
+      "Bash(python scripts/generate_report.py:*)",
+      "Bash(python scripts/run_eval.py:*)",
+      "Bash(python3 scripts/generate_report.py:*)",
+      "Bash(python3 scripts/run_eval.py:*)",
+      "Bash(pip install -r scripts/requirements.txt)",
+      "Bash(pip install -r scripts/ci-requirements.txt)",
+      "Read(CLAUDE.md)",
+      "Read(README.md)",
+      "Read(.claude/commands/**)",
+      "Read(agents/**)",
+      "Read(eval-cases/**)",
+      "Read(schema/**)",
+      "Read(results/**)",
+      "Write(eval-cases/**)",
+      "Write(results/**)",
+      "Edit(eval-cases/**)",
+      "Edit(results/**)"
+    ]
+  }
+}

@@ -6,12 +6,24 @@ the same thing headlessly.
 
 Loads CLAUDE.md, the target agent spec, and every active test case for that
 agent, then asks Claude to produce a JSON verdict per test case. Writes the
-aggregate JSON to stdout, matching the schema in schema/verdict-format.md.
+aggregate JSON to the correct results/ path.
+
+Output destination is auto-detected:
+- If stdout is a terminal (interactive use), writes to
+  `results/YYYY-MM-DD-<agent>.json` and prints the path to stderr. This
+  avoids the common shell trap of redirecting to `results/${DATE}-<agent>.json`
+  when `$DATE` is empty, which silently writes to `results/-<agent>.json`.
+- If stdout is redirected or piped (CI workflows, shell redirects, `| jq`),
+  writes the JSON to stdout as before.
 
 Requirements: anthropic SDK (see scripts/ci-requirements.txt).
 
 Usage:
-    python scripts/run_eval.py <agent-name> > results/YYYY-MM-DD-<agent>.json
+    python scripts/run_eval.py <agent-name>
+    # Interactive: auto-writes to results/YYYY-MM-DD-<agent>.json
+
+    python scripts/run_eval.py <agent-name> > custom/path.json
+    # Redirected: writes JSON to stdout (preserved for CI / piping)
 """
 
 from __future__ import annotations
@@ -288,7 +300,26 @@ def main() -> int:
         "run_date": dt.date.today().isoformat(),
         "verdicts": verdicts,
     }
-    print(json.dumps(output, indent=2))
+    output_json = json.dumps(output, indent=2)
+
+    if sys.stdout.isatty():
+        # Interactive terminal — auto-write to a well-named file so the user
+        # doesn't have to wrangle shell variables (and can't accidentally
+        # redirect to `results/-<agent>.json` via an empty $DATE).
+        date = dt.date.today().isoformat()
+        out_path = REPO_ROOT / "results" / f"{date}-{agent_name}.json"
+        out_path.parent.mkdir(parents=True, exist_ok=True)
+        out_path.write_text(output_json)
+        rel = out_path.relative_to(REPO_ROOT)
+        print(f"Wrote {rel}", file=sys.stderr)
+        print(
+            f"Next: python scripts/generate_report.py {rel}",
+            file=sys.stderr,
+        )
+    else:
+        # Redirected or piped — preserve the CI / pipe contract
+        print(output_json)
+
     return 0
 
 

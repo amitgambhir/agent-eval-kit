@@ -187,17 +187,34 @@ Severity attaches to the test case, not the verdict — it expresses "how bad if
 
 Initial build used `research-agent.md` / `pm-agent.md`. Renamed during review for consistency with the examples, which reference Ada and Curie by name throughout. A user can generalize from `curie.md` to "whatever my research agent is named" more easily than from a generic filename to a specific persona.
 
-### C3 — Ada's spec is a blend
+### C3 — Agent specs derived from real `AGENTS.md` + `SOUL.md`
 
-Ada in inner-circle-ai is Chief of Staff — she routes and consolidates, but doesn't carry explicit PM responsibilities. `agents/ada.md` extends her original role with PM-specific rules (PRD scoping, Acceptance Criteria, $50k cost escalation threshold, Engineering handoff on PRD approval) so this repo has a concrete PM persona to test against.
+Both `agents/curie.md` and `agents/ada.md` are composed from the actual inner-circle-ai files — the shared `AGENTS.md` rules (CEO authority, approval queue, escalation path, file-based coordination) merged with each agent's `SOUL.md` (core identity, role, operating principles, output format, session workflow).
 
-The blend is called out explicitly with a blockquote at the top of `agents/ada.md`. Deliberately not pretending this is pure inner-circle-ai.
+Early builds of this repo used invented agent content inferred only from `AGENTS.md`, with a "blend note" on Ada that added PM responsibilities not in her real spec. Those were replaced once the real `SOUL.md` files were available. Running evals against real system specs — not an approximation of them — is the point of the framework.
 
-### C4 — Three worked examples, all for Curie
+The agent spec files are self-contained for evaluator consumption: they inline the relevant `AGENTS.md` shared rules rather than cross-referencing a separate file. This keeps the evaluator's context window predictable and means each agent spec can stand alone when a new test case cites a specific rule.
 
-PASS / FAIL / PARTIAL demonstrations using a single agent. Keeps the examples narrow and comparable. Exercises three of the six categories (role-adherence, scope, escalation).
+### C4 — Six worked examples, three per agent, grounded where possible in real output
 
-Example 3 PARTIAL specifically tests "correct escalation, wrong routing target" (Tesla instead of Ada) — a distinct failure mode from "didn't escalate at all." Surfaces that escalation has more than one failure axis.
+PASS / FAIL / PARTIAL demonstrations for both Curie (research) and Ada (chief of staff). Keeps the suite symmetric, covers four of the six behavioral categories, and gives reviewers a PASS / FAIL / PARTIAL scorecard that demonstrates the full verdict range after a single run.
+
+| # | Agent | Verdict | Category | Source |
+|---|---|---|---|---|
+| 01 | Curie | PASS | output-format | Real output — competitive landscape brief, 2026-04-07 |
+| 02 | Curie | FAIL (critical) | scope | Synthetic — unauthorized GitHub/X outreach |
+| 03 | Curie | PARTIAL | escalation | Synthetic — SDK-deprecation decision routed to Tesla instead of Ada |
+| 04 | Ada | PASS | output-format | Real output — CEO briefing, 2026-04-07 session 2 |
+| 05 | Ada | FAIL | handoff | Synthetic — CEO feedback paraphrased in `.feedback.md` |
+| 06 | Ada | PARTIAL | role-adherence | Synthetic — Curie's CRITICAL security finding softened in the briefing |
+
+**Why this composition:**
+
+- **Grounding the PASS cases in real outputs** — Examples 01 and 04 use actual inner-circle-ai briefs pasted verbatim. This gives the evaluator gold-standard anchors for "what compliant behavior looks like" instead of inferring from prose descriptions.
+- **Synthetic violations for the FAIL / PARTIAL cases** — deliberate contract breaches that agents typically don't produce in production. These anchor the failure side of the rubric without needing historical incidents.
+- **Distinct failure axes for each PARTIAL** — Example 03 tests "right instinct, wrong routing target" (escalation); Example 06 tests "item surfaced, tone softened" (role-adherence). PARTIAL isn't a single class of failure.
+
+**Not covered yet (future expansion):** `confidence` category, Curie `role-adherence`, Ada `scope` and `escalation`. Additions welcome.
 
 ### C5 — Test case template carries concrete example content, not abstract placeholders
 

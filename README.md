@@ -6,6 +6,7 @@
 ![Python](https://img.shields.io/badge/python-3.11+-3776AB.svg)
 ![Claude](https://img.shields.io/badge/evaluator-Claude-D97757.svg)
 ![GitHub Actions](https://img.shields.io/badge/CI-GitHub%20Actions-2088FF.svg)
+[![Works with inner-circle-ai](https://img.shields.io/badge/works%20with-inner--circle--ai-7c3aed.svg)](https://github.com/amitgambhir/inner-circle-ai)
 
 A lightweight, file-based behavioral evaluation framework for agentic AI
 systems. Markdown in, JSON out, HTML reports, PR-level CI gating. No vector
@@ -315,13 +316,29 @@ file-based governance framework where five specialist agents (Ada, Curie,
 Tesla, Ogilvy, Nightingale) report to a CEO through Ada as Chief of Staff.
 Every agent has an explicit role, authority boundaries, escalation rules,
 and handoff conditions — exactly the contract shape that behavioral eval
-needs to test against. `agents/curie.md` is modeled on **Curie**
-(Head of Research); `agents/ada.md` is modeled on **Ada** (Chief of
-Staff) with product-management responsibilities layered on.
+needs to test against. `agents/curie.md` (Head of Research) and
+`agents/ada.md` (Chief of Staff) are composed directly from the shared
+`AGENTS.md` and each agent's `SOUL.md` in the upstream repo.
 
 You can replace these with your own agents — drop any markdown spec into
 `agents/` and write test cases against it. The categories are
 contract-shaped, not inner-circle-ai-specific.
+
+**The workflow in practice:**
+
+1. Define your agents in inner-circle-ai — role, authority boundaries,
+   escalation rules, handoff conditions — in `SOUL.md` and `AGENTS.md`
+2. Copy the relevant spec sections into `agents/<name>.md` here
+3. Write behavioral test cases (or use `/eval-add` to scaffold them)
+4. Run `/eval-run <agent-name>` before deploying agent changes
+5. In CI: evals run automatically on any PR that touches agent specs
+
+The Ada behavioral catch documented in the
+[inner-circle-ai case study](https://www.amitgambhir.com/case-studies/inner-circle-ai)
+— where she quietly filtered briefings instead of routing them — is
+exactly the failure mode the `role-adherence` category was built to
+detect. That catch happened manually. With agent-eval-kit, it would have
+surfaced in the PR check before the behavior ever reached production.
 
 ---
 

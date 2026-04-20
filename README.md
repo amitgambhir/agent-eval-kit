@@ -12,6 +12,8 @@ A lightweight, file-based behavioral evaluation framework for agentic AI
 systems. Markdown in, JSON out, HTML reports, PR-level CI gating. No vector
 database. No framework dependency.
 
+Built around the agent pattern from [inner-circle-ai](https://github.com/amitgambhir/inner-circle-ai) — works with any markdown-defined agent spec.
+
 > For the full design rationale, tradeoffs considered, implementation
 > decisions, and deferred-work triggers, see [DESIGN.md](DESIGN.md). This
 > README stays focused on getting you up and running.

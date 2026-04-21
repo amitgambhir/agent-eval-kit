@@ -31,7 +31,7 @@ Built around the agent pattern from [inner-circle-ai](https://github.com/amitgam
 - [GitHub Actions](#github-actions)
 - [Cost](#cost)
 - [How it connects to inner-circle-ai](#how-it-connects-to-inner-circle-ai)
-- [The RAG ecosystem](#the-rag-ecosystem)
+- [Contributing](#contributing)
 
 ---
 
@@ -344,23 +344,40 @@ surfaced in the PR check before the behavior ever reached production.
 
 ---
 
-## The RAG ecosystem
+## Contributing
 
-Four open-source projects, one complete quality loop:
+Contributions are welcome. This is an MIT-licensed open-source project.
 
-| Repo | Layer | What it does |
-|---|---|---|
-| [ai-feature-prd-toolkit](https://github.com/amitgambhir/ai-feature-prd-template) | Define | Writes the PRD before anything is built |
-| [inner-circle-ai](https://github.com/amitgambhir/inner-circle-ai) | Build | The agent system being evaluated |
-| **agent-eval-kit** | Evaluate behavior | Did the agents honor their spec? |
-| [rag-auditor](https://github.com/amitgambhir/rag-auditor) | Evaluate output | Did the RAG pipeline produce quality answers? |
+**Good first contributions:**
 
-Define → build → evaluate behavior → evaluate output. All open source.
+- New worked-example test cases in `eval-cases/examples/` covering failure modes the shipped six don't capture
+- New agent specs in `agents/` drawn from real systems — the categories are contract-shaped, not inner-circle-ai-specific
+- Sharper rubric language in [CLAUDE.md](CLAUDE.md) — especially severity guidelines and the recommendation quality bar
+- Report template improvements in [schema/report-template.html](schema/report-template.html)
+- Bug fixes in [scripts/generate_report.py](scripts/generate_report.py) or [scripts/run_eval.py](scripts/run_eval.py)
 
-**In practice:** `ai-feature-prd-toolkit` before writing code,
-`inner-circle-ai` (or your own) while you build, `agent-eval-kit` on every
-PR that touches agent specs, `rag-auditor` before shipping any RAG-backed
-feature to production.
+**How to contribute:**
+
+1. Fork the repo
+2. Create a branch (`git checkout -b feature/your-idea`)
+3. Make your changes
+4. Run the shipped examples end-to-end to confirm nothing regressed — copy an example into its category folder, run `/eval-run <agent>`, and render the report
+5. Submit a PR with a clear description of what changed and why
+
+**Guidelines:**
+
+- JSON verdicts must match [schema/verdict-format.md](schema/verdict-format.md) exactly — the report generator depends on the shape
+- Test cases must cite the exact spec rule they're testing against. Paraphrased citations defeat the purpose of LLM-as-judge
+- New categories need strong justification — the six shipped categories are meant to be contract-shaped and complete. Prefer new test cases over new categories
+- Keep [CLAUDE.md](CLAUDE.md) focused on judgment. Prose report generation stays in the Python layer
+- Recommendations in verdicts must name *where*, *what*, and *why*. See the recommendation quality bar in CLAUDE.md
+
+**What we're looking for:**
+
+- Real-world agent specs and test cases from systems you've shipped, especially behavioral failures you caught manually before production
+- Failure patterns the existing six categories don't cleanly describe — these are the most useful signal for rubric drift
+- CI integrations beyond GitHub Actions (GitLab CI, CircleCI, Buildkite)
+- Alternative report formats (JUnit XML for test reporters, SARIF for code-scanning dashboards)
 
 ---
 

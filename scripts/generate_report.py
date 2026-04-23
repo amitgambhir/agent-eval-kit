@@ -161,6 +161,17 @@ def main() -> int:
         return 2
 
     data = load_results(results_path)
+    if not data.get("verdicts"):
+        # Defense in depth for callers producing verdicts outside run_eval.py
+        # (Claude Code, custom harnesses). A zero-verdict report would look
+        # identical to a green run — refuse it.
+        print(
+            f"Error: {results_path} contains zero verdicts. Refusing to "
+            f"render a report with no coverage.",
+            file=sys.stderr,
+        )
+        return 3
+
     ctx = build_context(data)
 
     html = render_html(ctx)

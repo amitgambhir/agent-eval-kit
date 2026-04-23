@@ -247,7 +247,18 @@ def main() -> int:
     cases = find_active_cases(agent_name)
 
     if not cases:
-        print(f"Warning: no active test cases found for {agent_name}", file=sys.stderr)
+        # Zero coverage must not look like a successful run — the framework's
+        # whole point is PR-level behavioral gating. Examples under
+        # eval-cases/examples/ are intentionally excluded; copy one into the
+        # matching category folder (or author a new case with /eval-add) before
+        # running evals.
+        print(
+            f"Error: no active test cases found for {agent_name}. "
+            f"Copy an example from eval-cases/examples/ into the matching "
+            f"category folder, or author a new case with /eval-add.",
+            file=sys.stderr,
+        )
+        return 3
 
     # max_retries uses SDK's built-in exponential backoff for 429s and transient 5xxs
     client = Anthropic(max_retries=3)
@@ -288,10 +299,17 @@ def main() -> int:
             verdicts.append(verdict)
 
     if invalid_count:
+        # Any post-retry failure compromises the eval signal — the SDK already
+        # absorbs transient 429s/5xxs via max_retries. Surface it as a failed
+        # run rather than silently dropping cases and producing a green CI.
         print(
-            f"Warning: {invalid_count} verdict(s) skipped due to parse/schema errors.",
+            f"Error: {invalid_count} verdict(s) failed to parse or match the "
+            f"schema. The eval signal is incomplete; not writing a results "
+            f"file.",
             file=sys.stderr,
         )
+        print_usage_summary(usage)
+        return 3
 
     print_usage_summary(usage)
 

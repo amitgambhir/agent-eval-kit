@@ -29,7 +29,9 @@ is deliberately deferred.*
 
 RAG evaluation is a solved problem. RAGAS, Braintrust, and similar tools score
 output quality — faithfulness, relevancy, hallucination risk. Agent
-*behavioral* evaluation is not solved.
+*behavioral* evaluation — did the agent honor the role, scope, and governance rules you
+actually defined — has no simple tooling built for teams shipping agents.
+This project fills that gap.
 
 When you define an agent — its role, scope, escalation rules, handoff
 conditions — you're implicitly writing a behavioral contract. The agent
@@ -49,6 +51,16 @@ None of these are measurable with RAGAS. You need a different evaluation layer.
 
 The second is the *product correctness* question — what a PM or TPM needs to
 answer before shipping an agentic feature.
+
+**Landscape note (April 2026):** Tools addressing adjacent problems exist.
+Anthropic's Bloom generates behavioral evaluations for frontier model
+alignment research (sycophancy, self-preservation). DeepEval covers
+multi-turn conversation evaluation with custom LLM-judge metrics.
+Anthropic published a comprehensive agent eval guide in January 2026
+covering grader types, harnesses, and evaluation patterns. None of these
+address spec-contract behavioral verification for file-defined agents at
+personal/small-team scale with zero infrastructure. That is the specific
+gap this project fills.
 
 ---
 
@@ -380,8 +392,7 @@ Four repos, one complete AI product-quality loop:
 - No dominant OSS solution for agent behavioral evaluation exists
 - Search-visible for "agent evaluation", "LLM agent testing", "agent CI/CD", "AGENTS.md evaluation"
 - GitHub Actions integration drives inbound from developers building agent pipelines
-- Cross-references with inner-circle-ai compound discovery across the portfolio
-- Blog / LinkedIn angle: *"RAG eval is solved. Agent behavioral eval isn't — yet."*
+- Cross-references with inner-circle-ai drive discovery across the portfolio
 
 ---
 

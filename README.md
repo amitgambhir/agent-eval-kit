@@ -1,6 +1,6 @@
 # 🧭 agent-eval-kit
 
-**RAG eval tells you if your answers are accurate. Agent eval tells you if your agents are behaving correctly. Only one of these is a solved problem.**
+**RAG eval tells you if your answers are accurate. Agent eval tells you if your agents are behaving correctly. Only one has simple, accessible tooling built for teams shipping agents.**
 
 ![License](https://img.shields.io/badge/license-MIT-blue.svg)
 ![Python](https://img.shields.io/badge/python-3.11+-3776AB.svg)
@@ -44,7 +44,9 @@ agent, and refuse actions outside its scope.
 
 RAGAS, Braintrust, and the LLM-output-eval world answer a different question:
 *is the answer accurate?* That question is solved. The behavioral contract
-question isn't. This project evaluates the second.
+question — did the agent honor the role, scope, and governance rules you
+actually defined — has no simple tooling built for teams shipping agents.
+This project fills that gap.
 
 ---
 

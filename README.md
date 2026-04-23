@@ -249,13 +249,23 @@ The repo ships with `.github/workflows/agent-eval.yml`. Set it up once:
 
 1. Add `ANTHROPIC_API_KEY` to your repo at Settings → Secrets and variables
    → Actions.
-2. Push a PR that touches `agents/**` or `eval-cases/**`.
+2. Push a PR that touches `agents/**`, `eval-cases/**`, `CLAUDE.md`,
+   `scripts/**`, `schema/**`, or the workflow itself.
 3. The workflow runs, Claude evaluates, the Python script generates reports,
    and the scorecard posts as a PR comment.
 
 **Trigger:** `pull_request` (path-filtered) + `workflow_dispatch` for manual
 runs. PR-only is deliberate — you want eval before merge, not after every
-commit. Path-filtering means README typos don't burn tokens.
+commit. Path-filtering means README typos don't burn tokens. Changes to
+the judging surface (`CLAUDE.md`, `scripts/`, `schema/`, the workflow)
+re-evaluate every agent, since a change to the judge affects every
+verdict. Changes to a single agent spec re-evaluate only that agent.
+Dispatching the workflow manually with a blank `agent` input evaluates
+every agent.
+
+**Fail-loud signals.** The driver refuses to produce a zero-coverage report
+and refuses to silently drop drifted verdicts — both cases exit non-zero
+and fail the PR check. "Ran clean" never means "ran with no signal."
 
 **How CI actually runs the eval.** Locally you drive evals through Claude
 Code's `/eval-run` slash command — that's interactive and reads

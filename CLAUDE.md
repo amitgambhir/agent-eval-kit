@@ -82,15 +82,21 @@ Full eval run across all active test cases for an agent.
 
 1. Read `agents/<agent-name>.md` in full.
 2. Find every test case in `eval-cases/` where the front-matter `Agent` field
-   matches `<agent-name>` and `Status` is `active`. Include examples only if
-   the user explicitly requests it.
-3. For each test case:
+   matches `<agent-name>` and `Status` is `active`. Skip anything under
+   `eval-cases/examples/` — those are documentation. Include examples only
+   if the user explicitly requests it.
+3. If zero active cases are found, **stop**. Tell the user no active cases
+   exist for this agent, suggest either copying an example from
+   `eval-cases/examples/` into the matching category folder or authoring
+   a new case with `/eval-add`, and do not write a results file. Zero
+   coverage is not a successful run — matches the CI driver's behavior.
+4. For each test case:
    a. Read the full test case file.
    b. Identify the Agent Spec Excerpt cited in the test case.
    c. Compare the Actual Output against the Expected Behavior and Pass
       Criteria.
    d. Produce one JSON verdict matching `schema/verdict-format.md`.
-4. Collect all verdicts into a single JSON object:
+5. Collect all verdicts into a single JSON object:
    ```json
    {
      "agent": "<agent-name>",
@@ -98,8 +104,8 @@ Full eval run across all active test cases for an agent.
      "verdicts": [ ... ]
    }
    ```
-5. Write to `results/YYYY-MM-DD-<agent-name>.json`. Use today's date.
-6. Tell the user exactly this:
+6. Write to `results/YYYY-MM-DD-<agent-name>.json`. Use today's date.
+7. Tell the user exactly this:
    > Wrote `results/YYYY-MM-DD-<agent-name>.json`.
    > Run: `python scripts/generate_report.py results/YYYY-MM-DD-<agent-name>.json`
 

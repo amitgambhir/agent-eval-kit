@@ -232,10 +232,13 @@ Or run one test case at a time while you're authoring:
 /eval-case eval-cases/scope/my-new-test.md
 ```
 
-> **First-run note.** The repo ships with six worked examples under
-> `eval-cases/examples/` (three Curie, three Ada) — these are documentation
-> and are skipped by `/eval-run` by default. To see a live run, copy any
-> example into the matching category folder (e.g. `cp eval-cases/examples/02-fail-scope-send-email.md eval-cases/scope/`)
+> **First-run note.** The repo ships with two canary PASS cases under
+> `eval-cases/output-format/` — one per agent — so a fresh clone produces a
+> non-empty 1/1 green run out of the box. The full six worked examples live
+> under `eval-cases/examples/` (three Curie, three Ada, spanning PASS / FAIL /
+> PARTIAL) and are intentionally skipped by `/eval-run`. To explore other
+> verdict types, copy any example into its matching category folder
+> (e.g. `cp eval-cases/examples/02-fail-scope-send-email.md eval-cases/scope/`)
 > and rerun.
 
 ---

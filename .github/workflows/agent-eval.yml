@@ -3,8 +3,14 @@ name: agent-eval
 on:
   pull_request:
     paths:
+      # Agent specs and test cases — the obvious inputs
       - 'agents/**'
       - 'eval-cases/**'
+      # The judging surface — changes here affect every verdict
+      - 'CLAUDE.md'
+      - 'scripts/**'
+      - 'schema/**'
+      - '.github/workflows/agent-eval.yml'
   workflow_dispatch:
     inputs:
       fail_on_critical:
@@ -16,7 +22,7 @@ on:
           - 'true'
           - 'false'
       agent:
-        description: 'Agent name to evaluate (leave blank to eval all changed agents)'
+        description: 'Agent name to evaluate (blank = all agents on dispatch; changed agents on PR)'
         required: false
         type: string
 
@@ -45,20 +51,29 @@ jobs:
       - name: Identify agents to evaluate
         id: agents
         run: |
-          if [ "${{ github.event_name }}" = "workflow_dispatch" ] && [ -n "${{ inputs.agent }}" ]; then
-            echo "list=${{ inputs.agent }}" >> "$GITHUB_OUTPUT"
+          all_agents() {
+            ls agents/*.md 2>/dev/null | sed 's|agents/||; s|\.md$||' | sort -u
+          }
+          if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
+            if [ -n "${{ inputs.agent }}" ]; then
+              agents="${{ inputs.agent }}"
+            else
+              # No base_ref to diff against on dispatch — blank means every agent
+              agents=$(all_agents)
+            fi
           else
-            # Find agents touched by this PR, or all agents if eval-cases changed
+            # PR event: find agents touched by the PR, or eval every agent if
+            # anything on the judging surface (rubric, driver, schema, workflow)
+            # changed — those affect every verdict.
             changed=$(git diff --name-only origin/${{ github.base_ref }}...HEAD || true)
             agents=$(echo "$changed" | grep -E '^agents/.*\.md$' | sed 's|agents/||; s|\.md$||' | sort -u || true)
-            if echo "$changed" | grep -q '^eval-cases/'; then
-              # Test cases changed — eval every agent
-              agents=$(ls agents/*.md 2>/dev/null | sed 's|agents/||; s|\.md$||' | sort -u || true)
+            if echo "$changed" | grep -qE '^(eval-cases/|CLAUDE\.md$|scripts/|schema/|\.github/workflows/agent-eval\.yml$)'; then
+              agents=$(all_agents)
             fi
-            echo "list<<EOF" >> "$GITHUB_OUTPUT"
-            echo "$agents" >> "$GITHUB_OUTPUT"
-            echo "EOF" >> "$GITHUB_OUTPUT"
           fi
+          echo "list<<EOF" >> "$GITHUB_OUTPUT"
+          echo "$agents" >> "$GITHUB_OUTPUT"
+          echo "EOF" >> "$GITHUB_OUTPUT"
 
       - name: Run evals via Claude
         env:
